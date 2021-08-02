@@ -2,15 +2,37 @@ version: "3.9"
 
 services: 
 
-    utils:
+    # build the initial python container with poetry installed
+    # run poetry init the poetry add etc to set up the dependancies
+    # re-run this if the dependencies change 
+    python:
         build: 
             context: .
-            target: utils-base
+            target: pydep
         command: tail -f /dev/null
         volumes: 
-            - ./:/app
-        ports: 
-            - 3000:3000
+            - .:/app
+    
+    # build the initial node container with npm installed
+    # run npm init and npm install etc to set up the node dependancies
+    # re-run this if the dependencies change 
+    node:
+        build: 
+            context: .
+            target: nodedep
+        command: tail -f /dev/null
+        volumes: 
+            - .:/app
+
+    requirements:
+        build: 
+            context: .
+            target: requirements
+        command: tail -f /dev/null
+        volumes: 
+            - .:/app
+        depends_on: 
+            - python
 
     app:
         build: 
@@ -21,6 +43,7 @@ services:
         ports: 
             - 8000:8000
         depends_on: 
+            - requirements
             - db
 
     db:

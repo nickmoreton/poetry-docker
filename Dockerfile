@@ -1,93 +1,68 @@
-###############################################
-# Base Image
-###############################################
-FROM python:3.8-slim as python-base
+ARG PYTHON=3.6-slim
 
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=off \
-    PIP_DISABLE_PIP_VERSION_CHECK=on \
-    PIP_DEFAULT_TIMEOUT=100 \
-    POETRY_VERSION=1.1.6 \
-    POETRY_HOME="/opt/poetry" \
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
-    POETRY_NO_INTERACTION=1 \
-    PYSETUP_PATH="/app" \
-    VENV_PATH="/app/.venv" \
-    NODE_VERSION=14
+# *******************************
+# BASE
+FROM python:$PYTHON AS base
 
-# prepend poetry and venv to path
-ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
+ENV \
+    # build like wget:
+    BUILD_ONLY_PACKAGES='' \ 
+    # python:
+    PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
+    # pip:
+    PIP_NO_CACHE_DIR=off PIP_DISABLE_PIP_VERSION_CHECK=on PIP_DEFAULT_TIMEOUT=100 \
+    # poetry:
+    POETRY_VERSION=1.1.7 POETRY_NO_INTERACTION=1 POETRY_VIRTUALENVS_CREATE=false POETRY_CACHE_DIR='/var/cache/pypoetry' PATH="$PATH:/root/.poetry/bin" \
+    # node and npm
+    NODE_VERSION=14 \
+    # app root
+    APP_ROOT='/app'
 
-###############################################
-# Utils Image
-###############################################
-FROM python-base as utils-base
-RUN apt-get update \
+
+# *******************************
+# PYTHON DEPENDENCIES
+FROM base as pydep
+RUN apt-get update && apt-get upgrade -y \
     && apt-get install --no-install-recommends -y \
+    build-essential \
     curl \
-    build-essential
+    # Defining build-time-only dependencies:
+    $BUILD_ONLY_PACKAGES \
+    # Installing `poetry` package manager:
+    && curl -sSL 'https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py' | python
 
-# install poetry - respects $POETRY_VERSION & $POETRY_HOME
-RUN curl -sSL https://raw.githubusercontent.com/sdispater/poetry/master/get-poetry.py | python \
+WORKDIR $APP_ROOT
+
+# *******************************
+# NODE DEPENDENCIES
+FROM base as nodedep
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install --no-install-recommends -y \
+    build-essential \
+    curl \
+    # Defining build-time-only dependencies:
+    $BUILD_ONLY_PACKAGES \
+    # Installing `node` package manager:
     && curl -sL https://deb.nodesource.com/setup_$NODE_VERSION.x | bash - \
     && apt-get install -y nodejs
 
-# copy project requirement files here to ensure they will be cached.
-WORKDIR $PYSETUP_PATH
+WORKDIR $APP_ROOT
 
-###############################################
-# Node Image
-###############################################
-# FROM python-base as node-base
-# RUN apt-get update \
-#     && apt-get install --no-install-recommends -y \
-#     curl \
-#     build-essential
+# *******************************
+# PYTHON REQUIREMENTS
+FROM pydep as requirements
+WORKDIR $APP_ROOT
+COPY pyproject.toml poetry.lock ./
+RUN poetry export -f requirements.txt -o $APP_ROOT/requirements.txt --without-hashes
 
-# # install poetry - respects $POETRY_VERSION & $POETRY_HOME
-# RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - && \
-#     apt-get install -y nodejs
-# # copy project requirement files here to ensure they will be cached.
-# WORKDIR $PYSETUP_PATH
-# # install npm dependancies
-# WORKDIR /app
-# COPY . .
-# RUN npm install
-# RUN npm run sass 
-# RUN npm run scripts
-
-###############################################
-# Builder Image
-###############################################
-FROM python-base as builder-base
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
-    curl \
-    build-essential
-
-# install poetry - respects $POETRY_VERSION & $POETRY_HOME
-RUN curl -sSL https://raw.githubusercontent.com/sdispater/poetry/master/get-poetry.py | python \
-    && curl -sL https://deb.nodesource.com/setup_$NODE_VERSION.x | bash - \
-    && apt-get install -y nodejs
-
-# copy project requirement files here to ensure they will be cached.
-WORKDIR $PYSETUP_PATH
-COPY poetry.lock pyproject.toml ./
-
-# install runtime deps - uses $POETRY_VIRTUALENVS_IN_PROJECT internally
-RUN poetry install --no-dev
-
-COPY package.json package-lock.json ./
-RUN npm install 
-# run npm commands here like npm start. The compiled stuff should come across to production in the app
-
-###############################################
-# Production Image
-###############################################
-FROM python-base as production
-EXPOSE 8000
-COPY --from=builder-base $PYSETUP_PATH $PYSETUP_PATH
-WORKDIR $PYSETUP_PATH
-# COPY . . ?
-CMD gunicorn app.app.wsgi:application --bind 0.0.0.0:8000
+# *******************************
+# PRODUCTION
+FROM base AS production
+WORKDIR $APP_ROOT
+COPY --from=requirements $APP_ROOT/requirements.txt $APP_ROOT
+RUN pip install -r requirements.txt
+COPY . .
+# assumin and app is created in $APP_ROOT
+# do something like
+WORKDIR $APP_ROOT/app
+CMD [ "python", "manage.py", "runserver", "0.0.0.0:8000" ]

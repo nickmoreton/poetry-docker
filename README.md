@@ -5,39 +5,66 @@ python:3.8-slim and poetry 1.1.6, node 14. Can be changed in dockerfile
     e.g. can install wagtail 1.2 on python 3.5 useful for long upgrades. it's a bit slow for poetry getting depenencies! and wagtail django versions are a pain
     wagtail 1.10+ is OK
 
-### Start an initial project
+## Fresh Install
+Were you can add python dependencies and node dependencies
 
-Utils Base (python and node)
+Skip this if poetry files and node files already exist
+```
+docker-compose up -d python node
+```
+
+Python/poetry
+```
+docker-compose exec python bash
+```
+
+something lkie
 
 ```
-docker-compose up -d utils --build
-docker-compose exec utils bash
+poetry init
+poetry add django
 ```
 
-Then set up your python app and node builders for front end
+Node/npm
+```
+docker-compose exec node bash
+```
 
-### Develop
+something like
 
 ```
-docker-compose up -d --build
+npm init
+npm install gulp
+```
+
+## Development
+Run the app container
+
+```
+docker-compose up app -d
+```
+
+Will run app and db container and compile requirements.txt ready for running pip install
+
+### enter the app container
+
+```
 docker-compose exec app bash
 ```
+Run somthing like
+```
+django-admin startproject app .
+```
 
-Then run the app, like
-
+Run the app for development, like
 ```
 ./manage.py runserver 0.0.0.0:8000
-```
-
-Stop all
-```
-docker-compose down -v
 ```
 
 ## Add an existing app:
 
     alter docker file PYSETUP_PATH and VENV_PATH to suite the app root
-    alter POETRY_VERSION and NODE_VERSION to suite
+    alter POETRY_VERSION and NODE_VERSION to suit
 
 ## Postgres is available
 

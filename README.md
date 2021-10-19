@@ -47,6 +47,8 @@ npm init
 npm install gulp
 ```
 
+STOP THE SETUP CONTAINERS: `docker-compose down -v`
+
 # Development
 Running the app container. Will run app and db container and compile requirements.txt ready for running pip install inside the final container.
 

@@ -62,7 +62,7 @@ WORKDIR $APP_ROOT
 COPY --from=requirements $APP_ROOT/requirements.txt $APP_ROOT
 RUN pip install -r requirements.txt
 COPY . .
-# assumin and app is created in $APP_ROOT
+# assuming an app is created in $APP_ROOT
 # do something like
 WORKDIR $APP_ROOT/app
 CMD [ "python", "manage.py", "runserver", "0.0.0.0:8000" ]

@@ -41,7 +41,7 @@ npm install gulp
 Run the app container
 
 ```
-docker-compose up app -d
+docker-compose up -d app
 ```
 
 Will run app and db container and compile requirements.txt ready for running pip install
@@ -63,7 +63,7 @@ Run the app for development, like
 
 ## Add an existing app:
 
-    alter docker file PYSETUP_PATH and VENV_PATH to suite the app root
+    alter docker file PYSETUP_PATH and VENV_PATH to suit the app root
     alter POETRY_VERSION and NODE_VERSION to suit
 
 ## Postgres is available
